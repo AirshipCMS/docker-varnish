@@ -10,16 +10,18 @@ vcl 4.0;
 #    .port = "${VARNISH_BACKEND_PORT}";
 #}
 
-{{range getvs "/airship/nginx/http/*"}}
-    backend nginx{{.port}} {
-      .host = "{{.ipv4_addr}}";
-      .port = "{{.port}}";
+{{range gets "/airship/nginx/http/*"}}
+    {{$data := json .Value}}
+    backend nginx{{$data.port}} {
+      .host = "{{$data.ipv4_addr}}";
+      .port = "{{$data.port}}";
     }
 {{end}}
 
 director nginx round-robin {
-    {{range getvs "/airship/nginx/http/*"}}
-        { .backend = nginx{{.port}}; }
+    {{range gets "/airship/nginx/http/*"}}
+        {{$data := json .Value}}
+        { .backend = nginx{{$data.port}}; }
     {{end}}
 }
 
