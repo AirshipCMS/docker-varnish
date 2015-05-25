@@ -24,5 +24,4 @@ ADD confd /etc/confd
 # Expose volumes to be able to use data containers
 VOLUME ["/var/lib/varnish", "/etc/varnish"]
 
-ADD start.sh /start.sh
-CMD ["/start.sh"]
+CMD ["/usr/local/bin/confd-watch"]
