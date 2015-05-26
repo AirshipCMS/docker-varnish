@@ -23,5 +23,7 @@ echo "[varnish] confd is now monitoring etcd for changes..."
 echo "[varnish] starting varnish service..."
 varnishd -f /etc/varnish/default.vcl -s malloc,${VARNISH_MEM} -a 0.0.0.0:${VARNISH_PORT}
 
+sleep 10
+
 # Follow the logs to allow the script to continue running
 varnishlog
