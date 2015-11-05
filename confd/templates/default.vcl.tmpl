@@ -1,6 +1,7 @@
 vcl 4.0;
 
 # Based on: https://github.com/mattiasgeniar/varnish-4.0-configuration-templates/blob/master/default.vcl
+# and : http://oramind.com/nodejs-varnish-nginx/
 
 import std;
 import directors;
@@ -10,11 +11,15 @@ import directors;
     backend nginx{{$data.port}} {
       .host = "{{$data.ipv4_addr}}";
       .port = "{{$data.port}}";
+      .connect_timeout = 5s;
+      .first_byte_timeout = 10s;
+      .between_bytes_timeout = 30s;
+      .max_connections = 1000;
     }
 {{end}}
 
 acl purge {
-  # ACL we'll use later to allow purges
+  # ACL we''ll use later to allow purges
   "localhost";
   "127.0.0.1";
   "::1";
@@ -30,7 +35,7 @@ sub vcl_init {
     {{$data := json .Value}}
     vdir.add_backend(nginx{{$data.port}});
   {{end}}
-  
+
 }
 
 sub vcl_recv {
@@ -49,7 +54,7 @@ sub vcl_recv {
     }
   }
 
-  # Normalize the header, remove the port (in case you're testing this on various TCP ports)
+  # Normalize the header, remove the port (in case you''re testing this on various TCP ports)
   set req.http.Host = regsub(req.http.Host, ":[0-9]+", "");
 
   # Normalize the query arguments
@@ -61,7 +66,7 @@ sub vcl_recv {
       # Not from an allowed IP? Then die with an error.
       return (synth(405, "This IP is not allowed to send PURGE requests."));
     }
-    # If you got this stage (and didn't error out above), purge the cached result
+    # If you got this stage (and didn''t error out above), purge the cached result
     return (purge);
   }
 
@@ -78,11 +83,6 @@ sub vcl_recv {
     return (pipe);
   }
 
-  # Implementing websocket support (https://www.varnish-cache.org/docs/4.0/users-guide/vcl-example-websockets.html)
-  # if (req.http.Upgrade ~ "(?i)websocket") {
-  #   return (pipe);
-  # }
-
   # Only cache GET or HEAD requests. This makes sure the POST requests are always passed.
   if (req.method != "GET" && req.method != "HEAD") {
     return (pass);
@@ -97,7 +97,7 @@ sub vcl_recv {
     set req.url = regsub(req.url, "\?$", "");
   }
 
-  # Strip hash, server doesn't need it.
+  # Strip hash, server doesn''t need it.
   if (req.url ~ "\#") {
     set req.url = regsub(req.url, "\#.*$", "");
   }
@@ -107,83 +107,18 @@ sub vcl_recv {
     set req.url = regsub(req.url, "\?$", "");
   }
 
-  # Some generic cookie manipulation, useful for all templates that follow
-  # Remove the "has_js" cookie
-  set req.http.Cookie = regsuball(req.http.Cookie, "has_js=[^;]+(; )?", "");
-
-  # Remove any Google Analytics based cookies
-  set req.http.Cookie = regsuball(req.http.Cookie, "__utm.=[^;]+(; )?", "");
-  set req.http.Cookie = regsuball(req.http.Cookie, "_ga=[^;]+(; )?", "");
-  set req.http.Cookie = regsuball(req.http.Cookie, "utmctr=[^;]+(; )?", "");
-  set req.http.Cookie = regsuball(req.http.Cookie, "utmcmd.=[^;]+(; )?", "");
-  set req.http.Cookie = regsuball(req.http.Cookie, "utmccn.=[^;]+(; )?", "");
-
-  # Remove DoubleClick offensive cookies
-  set req.http.Cookie = regsuball(req.http.Cookie, "__gads=[^;]+(; )?", "");
-
-  # Remove the Quant Capital cookies (added by some plugin, all __qca)
-  set req.http.Cookie = regsuball(req.http.Cookie, "__qc.=[^;]+(; )?", "");
-
-  # Remove the AddThis cookies
-  set req.http.Cookie = regsuball(req.http.Cookie, "__atuv.=[^;]+(; )?", "");
-
-  # Remove a ";" prefix in the cookie if present
-  set req.http.Cookie = regsuball(req.http.Cookie, "^;\s*", "");
-
-  # Are there cookies left with only spaces or that are empty?
-  if (req.http.cookie ~ "^\s*$") {
-    unset req.http.cookie;
-  }
-
-  # Normalize Accept-Encoding header
-  # straight from the manual: https://www.varnish-cache.org/docs/3.0/tutorial/vary.html
-  # TODO: Test if it's still needed, Varnish 4 now does this by itself if http_gzip_support = on
-  # https://www.varnish-cache.org/docs/trunk/users-guide/compression.html
-  # https://www.varnish-cache.org/docs/trunk/phk/gzip.html
-  if (req.http.Accept-Encoding) {
-    if (req.url ~ "\.(jpg|png|gif|gz|tgz|bz2|tbz|mp3|ogg)$") {
-      # No point in compressing these
-      unset req.http.Accept-Encoding;
-    } elsif (req.http.Accept-Encoding ~ "gzip") {
-      set req.http.Accept-Encoding = "gzip";
-    } elsif (req.http.Accept-Encoding ~ "deflate") {
-      set req.http.Accept-Encoding = "deflate";
-    } else {
-      # unkown algorithm
-      unset req.http.Accept-Encoding;
-    }
-  }
+  # remove all cookies
+  unset req.http.cookie;
 
   if (req.http.Cache-Control ~ "(?i)no-cache") {
-  #if (req.http.Cache-Control ~ "(?i)no-cache" && client.ip ~ editors) { # create the acl editors if you want to restrict the Ctrl-F5
   # http://varnish.projects.linpro.no/wiki/VCLExampleEnableForceRefresh
   # Ignore requests via proxy caches and badly behaved crawlers
   # like msnbot that send no-cache with every request.
     if (! (req.http.Via || req.http.User-Agent ~ "(?i)bot" || req.http.X-Purge)) {
-      #set req.hash_always_miss = true; # Doesn't seems to refresh the object in the cache
+      #set req.hash_always_miss = true; # Doesn''t seems to refresh the object in the cache
       return(purge); # Couple this with restart in vcl_purge and X-Purge header to avoid loops
     }
   }
-
-  # Large static files are delivered directly to the end-user without
-  # waiting for Varnish to fully read the file first.
-  # Varnish 4 fully supports Streaming, so set do_stream in vcl_backend_response()
-  if (req.url ~ "^[^?]*\.(mp[34]|rar|tar|tgz|gz|wav|zip|bz2|xz|7z|avi|mov|ogm|mpe?g|mk[av])(\?.*)?$") {
-    unset req.http.Cookie;
-    return (hash);
-  }
-
-  # Remove all cookies for static files
-  # A valid discussion could be held on this line: do you really need to cache static files that don't cause load? Only if you have memory left.
-  # Sure, there's disk I/O, but chances are your OS will already have these files in their buffers (thus memory).
-  # Before you blindly enable this, have a read here: https://ma.ttias.be/stop-caching-static-files/
-  if (req.url ~ "^[^?]*\.(bmp|bz2|css|doc|eot|flv|gif|gz|ico|jpeg|jpg|js|less|pdf|png|rtf|swf|txt|woff|xml)(\?.*)?$") {
-    unset req.http.Cookie;
-    return (hash);
-  }
-
-  # Send Surrogate-Capability headers to announce ESI support to backend
-  set req.http.Surrogate-Capability = "key=ESI/1.0";
 
   if (req.http.Authorization) {
     # Not cacheable by default
@@ -219,7 +154,7 @@ sub vcl_pipe {
 
 sub vcl_pass {
   # Called upon entering pass mode. In this mode, the request is passed on to the backend, and the
-  # backend's response is passed on to the client, but is not entered into the cache. Subsequent
+  # backend''s response is passed on to the client, but is not entered into the cache. Subsequent
   # requests submitted over the same client connection are handled normally.
 
   # return (pass);
@@ -238,10 +173,6 @@ sub vcl_hash {
     hash_data(server.ip);
   }
 
-  # hash cookies for requests that have them
-  if (req.http.Cookie) {
-    hash_data(req.http.Cookie);
-  }
 }
 
 sub vcl_hit {
@@ -305,39 +236,6 @@ sub vcl_backend_response {
     set beresp.do_esi = true;
   }
 
-  # Enable cache for all static files
-  # The same argument as the static caches from above: monitor your cache size, if you get data nuked out of it, consider giving up the static file cache.
-  # Before you blindly enable this, have a read here: https://ma.ttias.be/stop-caching-static-files/
-  if (bereq.url ~ "^[^?]*\.(bmp|bz2|css|doc|eot|flv|gif|gz|ico|jpeg|jpg|js|less|mp[34]|pdf|png|rar|rtf|swf|tar|tgz|txt|wav|woff|xml|zip)(\?.*)?$") {
-    unset beresp.http.set-cookie;
-  }
-
-  # Large static files are delivered directly to the end-user without
-  # waiting for Varnish to fully read the file first.
-  # Varnish 4 fully supports Streaming, so use streaming here to avoid locking.
-  if (bereq.url ~ "^[^?]*\.(mp[34]|rar|tar|tgz|gz|wav|zip|bz2|xz|7z|avi|mov|ogm|mpe?g|mk[av])(\?.*)?$") {
-    unset beresp.http.set-cookie;
-    set beresp.do_stream = true;  # Check memory usage it'll grow in fetch_chunksize blocks (128k by default) if the backend doesn't send a Content-Length header, so only enable it for big objects
-    set beresp.do_gzip = false;   # Don't try to compress it for storage
-  }
-
-  # Sometimes, a 301 or 302 redirect formed via Apache's mod_rewrite can mess with the HTTP port that is being passed along.
-  # This often happens with simple rewrite rules in a scenario where Varnish runs on :80 and Apache on :8080 on the same box.
-  # A redirect can then often redirect the end-user to a URL on :8080, where it should be :80.
-  # This may need finetuning on your setup.
-  #
-  # To prevent accidental replace, we only filter the 301/302 redirects for now.
-  if (beresp.status == 301 || beresp.status == 302) {
-    set beresp.http.Location = regsub(beresp.http.Location, ":[0-9]+", "");
-  }
-
-  # Set 2min cache if unset for static files
-  if (beresp.ttl <= 0s || beresp.http.Set-Cookie || beresp.http.Vary == "*") {
-    set beresp.ttl = 120s; # Important, you shouldn't rely on this, SET YOUR HEADERS in the backend
-    set beresp.uncacheable = true;
-    return (deliver);
-  }
-
   # Allow stale content, in case the backend goes down.
   # make Varnish keep all objects for 6 hours beyond their TTL
   set beresp.grace = 6h;
@@ -350,27 +248,17 @@ sub vcl_backend_response {
 sub vcl_deliver {
   # Called before a cached object is delivered to the client.
 
-  if (obj.hits > 0) { # Add debug header to see if it's a HIT/MISS and the number of hits, disable when not needed
+  if (obj.hits > 0) { # Add debug header to see if it''s a HIT/MISS and the number of hits, disable when not needed
     set resp.http.X-Cache = "HIT";
   } else {
     set resp.http.X-Cache = "MISS";
   }
 
-  # Please note that obj.hits behaviour changed in 4.0, now it counts per objecthead, not per object
-  # and obj.hits may not be reset in some cases where bans are in use. See bug 1492 for details.
-  # So take hits with a grain of salt
-  set resp.http.X-Cache-Hits = obj.hits;
-
   # Remove some headers: PHP version
   unset resp.http.X-Powered-By;
 
-  # Remove some headers: Apache version & OS
+  # Remove some headers: backend version & OS
   unset resp.http.Server;
-  unset resp.http.X-Drupal-Cache;
-  unset resp.http.X-Varnish;
-  unset resp.http.Via;
-  unset resp.http.Link;
-  unset resp.http.X-Generator;
 
   return (deliver);
 }
