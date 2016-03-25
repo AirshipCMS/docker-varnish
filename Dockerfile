@@ -10,11 +10,14 @@ RUN apt-get update && \
 
 ENV VARNISH_PORT 80
 ENV VARNISH_MEM 256M
+ENV HOST_IP 0.0.0.0
+ENV ETCD_PORT 2379
 
 # Expose port 80
 EXPOSE 80
 
 # install confd and watch script
+ADD https://github.com/kelseyhightower/confd/releases/download/v0.11.0/confd-0.11.0-linux-amd64 /usr/local/bin/
 ADD bin/* /usr/local/bin/
 RUN chmod +x /usr/local/bin/*
 
