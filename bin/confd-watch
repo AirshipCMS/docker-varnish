@@ -5,6 +5,9 @@ set -eo pipefail
 export ETCD_PORT=${ETCD_PORT:-2379}
 export HOST_IP=${HOST_IP:-172.17.42.1}
 export ETCD=$HOST_IP:$ETCD_PORT
+cp /etc/default/varnish /etc/default/disable.varnish
+# won't work without this
+echo "START=yes" > /etc/default/varnish
 
 echo "[varnish] booting container. ETCD: $ETCD"
 
@@ -21,7 +24,21 @@ echo "[varnish] confd is now monitoring etcd for changes..."
 
 # Start the varnish service using the generated config
 echo "[varnish] starting varnish service..."
-varnishd -f /etc/varnish/default.vcl -s malloc,${VARNISH_MEM} -a 0.0.0.0:${VARNISH_PORT}
+
+# Maximum number of open files (for ulimit -n)
+export NFILES=131072
+
+# Maximum locked memory size (for ulimit -l)
+# Used for locking the shared memory log in memory.  If you increase log size,
+# you need to increase this number as well
+export MEMLOCK=82000
+
+export DAEMON_OPTS="-f /etc/varnish/default.vcl \
+  -s malloc,${VARNISH_MEM} \
+  -a 0.0.0.0:${VARNISH_PORT} \
+  -S /etc/varnish/secret"
+
+service varnish start
 
 sleep 10
 
