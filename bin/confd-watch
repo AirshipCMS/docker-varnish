@@ -35,6 +35,7 @@ export MEMLOCK=82000
 
 export DAEMON_OPTS="-f /etc/varnish/default.vcl \
   -s malloc,${VARNISH_MEM} \
+  -s file,10G,/var/lib/varnish/storage.tmp \
   -a 0.0.0.0:${VARNISH_PORT} \
   -S /etc/varnish/secret"
 
