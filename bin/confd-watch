@@ -5,6 +5,7 @@ set -eo pipefail
 export ETCD_PORT=${ETCD_PORT:-2379}
 export HOST_IP=${HOST_IP:-172.17.42.1}
 export ETCD=$HOST_IP:$ETCD_PORT
+
 cp /etc/default/varnish /etc/default/disable.varnish
 # won't work without this
 echo "START=yes" > /etc/default/varnish
@@ -25,6 +26,9 @@ echo "[varnish] confd is now monitoring etcd for changes..."
 # Start the varnish service using the generated config
 echo "[varnish] starting varnish service..."
 
+# default storage size
+export VARNISH_MEM=${VARNISH_MEM:-512M}
+
 # Maximum number of open files (for ulimit -n)
 export NFILES=131072
 
@@ -33,9 +37,10 @@ export NFILES=131072
 # you need to increase this number as well
 export MEMLOCK=82000
 
+# -s file,/var/lib/varnish/storage.tmp,10G \
+
 export DAEMON_OPTS="-f /etc/varnish/default.vcl \
   -s malloc,${VARNISH_MEM} \
-  -s file,10G,/var/lib/varnish/storage.tmp \
   -a 0.0.0.0:${VARNISH_PORT} \
   -S /etc/varnish/secret"
 
