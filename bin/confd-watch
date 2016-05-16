@@ -46,7 +46,7 @@ export DAEMON_OPTS="-f /etc/varnish/default.vcl \
 
 /etc/init.d/varnish start
 
-sleep 10
+sleep 30
 
 # Follow the logs to allow the script to continue running
 varnishlog
