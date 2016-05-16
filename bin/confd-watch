@@ -44,7 +44,7 @@ export DAEMON_OPTS="-f /etc/varnish/default.vcl \
   -a 0.0.0.0:${VARNISH_PORT} \
   -S /etc/varnish/secret"
 
-service varnish start
+/etc/init.d/varnish start
 
 sleep 10
 
