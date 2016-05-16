@@ -22,9 +22,10 @@ echo "[varnish] confd is now monitoring etcd for changes..."
 # Start the varnish service using the generated config
 echo "[varnish] starting varnish service..."
 
-/etc/init.d/varnish start
+# do not start this, confd starts it via reload_cmd
+# /etc/init.d/varnish start
 
-sleep 30
+sleep 10
 
 # Follow the logs to allow the script to continue running
 varnishlog
