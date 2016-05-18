@@ -28,7 +28,9 @@ RUN chmod +x /usr/local/bin/*
 # add confd templates
 ADD confd /etc/confd
 
+ADD default.varnish.env /etc/default/varnish
+
 # Expose volumes to be able to use data containers
-VOLUME ["/var/lib/varnish", "/etc/varnish"]
+# VOLUME ["/var/lib/varnish", "/etc/varnish"]
 
 CMD ["/usr/local/bin/confd-watch"]
