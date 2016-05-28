@@ -28,4 +28,5 @@ echo "[varnish] starting varnish service..."
 sleep 10
 
 # Follow the logs to allow the script to continue running
-varnishlog
+# varnishlog
+varnishncsa
