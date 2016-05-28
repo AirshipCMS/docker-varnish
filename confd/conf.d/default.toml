@@ -18,5 +18,8 @@ mode = "0644"
 # These are the commands that will be used to check whether the rendered config is
 # valid and to reload the actual service once the new config is in place
 # check_cmd = "varnishd -C -f /etc/varnish/default.vcl"
-check_cmd = "/etc/init.d/varnish configtest"
+# check_cmd = "/etc/init.d/varnish configtest"
+# !!! This will fail with 0 backends. if it fails, it will not restart
+# need to be true to reload config and self heal
+check_cmd = "true"
 reload_cmd = "/etc/init.d/varnish restart"
