@@ -21,7 +21,7 @@ echo "[varnish] confd is now monitoring etcd for changes..."
 
 # Start the varnish service using the generated config
 echo "[varnish] starting varnish service..."
-source /etc/default/varnish
+. /etc/default/varnish
 /etc/init.d/varnish start
 
 sleep 10

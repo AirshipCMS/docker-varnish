@@ -22,5 +22,5 @@ mode = "0644"
 # !!! This will fail with 0 backends. if it fails, it will not restart
 # need to be true to reload config and self heal
 check_cmd = "true"
-reload_cmd = "source /etc/default/varnish && /etc/init.d/varnish restart"
+reload_cmd = ". /etc/default/varnish && /etc/init.d/varnish restart"
 
