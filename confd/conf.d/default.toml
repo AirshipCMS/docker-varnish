@@ -9,7 +9,7 @@ dest = "/etc/varnish/default.vcl"
 
 # The etcd keys or directory to watch.  This is where the information to fill in
 # the template will come from.
-keys = [ "/airship/nginx" ]
+keys = [ "/airship/admin" ]
 
 # File ownership and mode information
 owner = "root"
