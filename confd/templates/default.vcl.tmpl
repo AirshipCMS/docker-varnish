@@ -6,7 +6,7 @@ vcl 4.0;
 import std;
 import directors;
 
-{{range gets "/airship/nginx/http/*"}}
+{{range gets "/airship/admin/*"}}
     {{$data := json .Value}}
     backend nginx{{$data.port}} {
       .host = "{{$data.ipv4_addr}}";
@@ -31,7 +31,7 @@ sub vcl_init {
 
   new vdir = directors.round_robin();
 
-  {{range gets "/airship/nginx/http/*"}}
+  {{range gets "/airship/admin/*"}}
     {{$data := json .Value}}
     vdir.add_backend(nginx{{$data.port}});
   {{end}}
