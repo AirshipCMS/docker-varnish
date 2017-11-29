@@ -5,9 +5,10 @@ ENV DEBIAN_FRONTEND noninteractive
 
 # Update the package repository and install applications
 RUN apt-get update && \
-    apt-get install -y apt-transport-https curl && \
-    curl https://repo.varnish-cache.org/GPG-key.txt | apt-key add - && \
-    echo "deb https://repo.varnish-cache.org/debian/ jessie varnish-4.1" >> /etc/apt/sources.list.d/varnish-cache.list
+    apt-get install -y apt-transport-https curl debian-archive-keyring gnupg && \
+    curl -L https://packagecloud.io/varnishcache/varnish41/gpgkey | apt-key add - \
+    deb https://packagecloud.io/varnishcache/varnish41/debian/ jessie main \
+    deb-src https://packagecloud.io/varnishcache/varnish41/debian/ jessie main
 RUN apt-get update && \
     apt-get install -y varnish && \
     rm -rf /var/lib/apt/lists/*
