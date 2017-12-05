@@ -6,17 +6,14 @@ vcl 4.0;
 import std;
 import directors;
 
-{{range gets "/airship/admin/*"}}
-    {{$data := json .Value}}
-    backend nginx{{$data.port}} {
-      .host = "{{$data.ipv4_addr}}";
-      .port = "{{$data.port}}";
-      .connect_timeout = 5s;
-      .first_byte_timeout = 10s;
-      .between_bytes_timeout = 30s;
-      .max_connections = 1000;
-    }
-{{end}}
+backend nginx {
+  .host = "${NGINX_BACKEND_ALB_HOST}";
+  .port = "${NGINX_BACKEND_ALB_PORT}";
+  .connect_timeout = 5s;
+  .first_byte_timeout = 10s;
+  .between_bytes_timeout = 30s;
+  .max_connections = 1000;
+}
 
 acl purge {
   # ACL we''ll use later to allow purges
@@ -31,10 +28,7 @@ sub vcl_init {
 
   new vdir = directors.round_robin();
 
-  {{range gets "/airship/admin/*"}}
-    {{$data := json .Value}}
-    vdir.add_backend(nginx{{$data.port}});
-  {{end}}
+  vdir.add_backend(nginx);
 
 }
 
