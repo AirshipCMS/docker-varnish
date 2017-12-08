@@ -5,18 +5,17 @@ vcl 4.0;
 
 import std;
 import directors;
+import dynamic;
 
-{{range gets "/airship/nginx/http/*"}}
-    {{$data := json .Value}}
-    backend nginx{{$data.port}} {
-      .host = "{{$data.ipv4_addr}}";
-      .port = "{{$data.port}}";
-      .connect_timeout = 5s;
-      .first_byte_timeout = 10s;
-      .between_bytes_timeout = 30s;
-      .max_connections = 1000;
-    }
-{{end}}
+backend default {
+  .host = "127.0.0.1";
+}
+
+probe nginx_probe {
+  .url = "/_version";
+  .threshold = 2;
+  .interval = 5s;
+}
 
 acl purge {
   # ACL we''ll use later to allow purges
@@ -29,12 +28,12 @@ sub vcl_init {
   # Called when VCL is loaded, before any requests pass through it.
   # Typically used to initialize VMODs.
 
-  new vdir = directors.round_robin();
-
-  {{range gets "/airship/nginx/http/*"}}
-    {{$data := json .Value}}
-    vdir.add_backend(nginx{{$data.port}});
-  {{end}}
+  new nginx_dir = dynamic.director(
+    host_header = "${AIRSHIPCMS_T1_DOMAIN}",
+    port = "${NGINX_BACKEND_ALB_PORT}",
+    probe = nginx_probe,
+    ttl = 5s
+  );
 
 }
 
@@ -44,7 +43,7 @@ sub vcl_recv {
   # which backend to use.
   # also used to modify the request
 
-  set req.backend_hint = vdir.backend(); # send all traffic to the vdir director
+  set req.backend_hint = nginx_dir.backend("${NGINX_BACKEND_ALB_HOST}"); # send all traffic to the nginx_dir director
 
   if (req.restarts == 0) {
     if (req.http.X-Forwarded-For) { # set or append the client.ip to X-Forwarded-For header
